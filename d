@@ -203,4 +203,4 @@ box { <-9, 1.4, 10>,
       texture {                  
          pigment { color Black }
       }                          
- }
+    }
