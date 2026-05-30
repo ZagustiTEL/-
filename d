@@ -1,225 +1,108 @@
 #include "colors.inc"
 #include "textures.inc" 
+#include "stul.pov" 
 
 camera { 
-   location <-15, 10, 25>  
-   look_at <-9, -8, 1>  
+   location <15, 15, 30>  
+   look_at <5, 5, 10>  
  }
       
 light_source { <-3, 10, -3> White shadowless }
+light_source { <100, 100, -100> color rgb 1 }
 
 background { color rgb<0.2, 0.4, 0.8>  }
-  light_source { <100, 100, -100> color rgb 1 }
 
-
-
-box { <-8.5, -3.8, 5>,               
-      < -4, -4, 10>               
-      texture {                  
-         pigment { Brown }
-      }                          
- }
-
-box { <-9, -10, 5>,                 
-      < -8.5, 1.4, 5.5>               
-      texture {                  
-         pigment { color Gray } 
-      }                          
- }                                 
-   
-box { <-9, -10, 10>,                
-      < -8.5, 1.4, 9.5>            
-      texture {                  
-         pigment { color Gray }
-      }                          
- }
+plane {
+    y, -10
+    pigment { checker color Orange, color Yellow scale 10 }
+}                                                                                
   
-   
-box { <-3.8, -10, 10>,                
-      < -10.7, -9.5, 9.5>               
-      texture {                  
-         pigment { color Gray }
-      }                          
- }  
- 
-box { <-3.8, -10, 5>,                
-      <-10.7, -9.5, 5.5>               
-      texture {                  
-         pigment { color Gray }
-      }                          
- }
- 
-  
+// СТОЛ (из первого кода)
+box { <20, 5, 15>, <0, 4.3, 1> texture { pigment { Brown } } }        
+box { <19, -4, 1.3>, <1, 5, 1> texture { pigment { Red } } } 
+box { <0.3, 5, 13>, <1, -10, 1> texture { pigment { Grey } } } 
+box { <19, 5, 13>, <18.3, -10, 1> texture { pigment { Grey } } }
 
-box { <-9, -10, 5>,                 
-      <-8.5, -9.5, 10>               
-      texture {                  
-         pigment { color Gray }  
-      }                          
- } 
+// клава 
+box { <5, 5.5, 13>, <14, 5, 8> 
+    texture {                  
+         pigment { 
+          image_map { png "image/Clav.png" once map_type 0 interpolate 2 } 
+          scale <17, 12.5, 1>
+          translate <7, 0, 4>      
+        }
+        finish { ambient 0.3 diffuse 0.7 }
+    }
+}      
 
-// Iia neaaieai 
-box { <-8.5, -4, 10>,                
-      <-5, -4.5, 9.5>               
-      texture {                  
-         pigment { color Gray } 
-      }                          
- }  
- 
-box { <-8.5, -4, 5>,              
-      <-5, -4.5, 5.5>               
-      texture {                  
-         pigment { color Gray } 
-      }                          
- }
-
-
-box { <-8.5, -1, 5>,            
-      < -8.3, 2, 10>            
-      texture {                  
-         pigment { wood }  
-      }                          
- }   
-
-
-// Верхняя заклёпка
-cylinder { 
-   <-8.35, 0, 9.9>, 
-   <-8.35, 0, 9.80>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.7, 0.7, 0.75> } 
-      finish { specular 0.7 roughness 0.01 }
-   }
+// Моник
+box { <10, 13, 6>, <11, 5, 5.5> texture { pigment { Black } } } 
+box { <5, 16, 6>, <16, 8, 5.5> texture { pigment { Black } } } 
+box { <4.9, 16, 6>, <15.9, 8, 5.9>
+    texture {                  
+         pigment { 
+          image_map { png "image/mon.png" once map_type 0 interpolate 2 } 
+          scale <12, 12, 1>
+          translate <5, 4, 4>    
+        }
+        finish { ambient 0.3 diffuse 0.7 }
+    }
 } 
-
-cylinder { 
-   <-8.35, 1.5, 9.9>, 
-   <-8.35, 1.5, 9.80>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.7, 0.7, 0.75> } 
-      finish { specular 0.7 roughness 0.01 }
-   }
+          
+// системник          
+box { <18, -10, 10>, <14, -1, 4> 
+    texture {                  
+         pigment { 
+          image_map { png "image/sis.png" once map_type 0 interpolate 2 } 
+          scale <18, -10, 10>
+          translate <14, -1, 4>    
+        }
+        finish { ambient 0.3 diffuse 0.7 }
+    }
 }
 
-// Нижняя заклёпка
-cylinder { 
-   <-8.35, 0, 5.08>, 
-   <-8.35, 0, 5.20>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.8, 0.6, 0.15> } 
-      finish { specular 0.6 roughness 0.02 }
-   }
-} 
+// ========== СТУЛ (из второго кода, смещён к столу) ==========
+// Стул размещается перед столом (с координатами X около 0-10, Z около 2-4)
 
-cylinder { 
-   <-8.35, 1.5, 5.08>, 
-   <-8.35, 1.5, 5.20>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.8, 0.6, 0.15> } 
-      finish { specular 0.6 roughness 0.02 }
-   }
-}
+// Сиденье стула
+box { <1.5, -3.8, 3>, <6, -4, 8> texture { pigment { Brown } } }
 
-// Передние заклёпки 
-cylinder { 
-   <-7.5, -3.95, 5.2>, 
-   <-7.5, -3.75, 5.2>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.8, 0.6, 0.15> } 
-      finish { specular 0.6 roughness 0.02 }
-   }
-}
+// Ножки стула
+box { <1, -10, 3>, <1.5, 1.4, 3.5> texture { pigment { color Gray } } }                                 
+box { <1, -10, 8>, <1.5, 1.4, 7.5> texture { pigment { color Gray } } }
+box { <6.2, -10, 8>, <5.7, -9.5, 7.5> texture { pigment { color Gray } } }  
+box { <6.2, -10, 3>, <5.7, -9.5, 3.5> texture { pigment { color Gray } } }
 
-cylinder { 
-   <-5.5, -3.95, 5.2>, 
-   <-5.5, -3.75, 5.2>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.8, 0.6, 0.15> } 
-      finish { specular 0.6 roughness 0.02 }
-   }
-}
+// Перекладины между ножками
+box { <1, -10, 3>, <1.5, -9.5, 8> texture { pigment { color Gray } } } 
+box { <1.5, -4, 8>, <5, -4.5, 7.5> texture { pigment { color Gray } } }  
+box { <1.5, -4, 3>, <5, -4.5, 3.5> texture { pigment { color Gray } } }
 
-// Задние заклёпки
-cylinder { 
-   <-7.5, -3.95, 9.7>, 
-   <-7.5, -3.75, 9.7>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.8, 0.6, 0.15> } 
-      finish { specular 0.6 roughness 0.02 }
-   }
-}
+// Спинка стула
+box { <1.5, -1, 3>, <1.7, 2, 8> texture { pigment { wood } } }   
 
-cylinder { 
-   <-5.5, -3.95, 9.7>, 
-   <-5.5, -3.75, 9.7>, 
-   0.09
-   texture { 
-      pigment { color rgb <0.8, 0.6, 0.15> } 
-      finish { specular 0.6 roughness 0.02 }
-   }
-}
+// Заклёпки на спинке (верхние)
+cylinder { <1.55, 0, 7.9>, <1.55, 0, 7.8>, 0.09 texture { pigment { color rgb <0.7, 0.7, 0.75> } finish { specular 0.7 roughness 0.01 } } } 
+cylinder { <1.55, 1.5, 7.9>, <1.55, 1.5, 7.8>, 0.09 texture { pigment { color rgb <0.7, 0.7, 0.75> } finish { specular 0.7 roughness 0.01 } } }
 
-// ========== ОСТАЛЬНЫЕ ДЕТАЛИ ==========
- 
-box { <-10.7, -10, 10>,                
-      < -11.2, -9.5, 9.5>               
-      texture {                  
-         pigment { color Black }
-      }                          
- }  
- 
-box { <-10.7, -10, 5>,                
-      <-11.2, -9.5, 5.5>            
-      texture {                  
-         pigment { color Black }
-      }                          
- } 
- 
-box { <-3.3, -10, 10>,               
-      < -3.8, -9.5, 9.5>               
-      texture {                  
-         pigment { color Black } 
-      }                          
- } 
- 
-box { <-3.3, -10, 5>,              
-      <-3.8, -9.5, 5.5>               
-      texture {                  
-         pigment { color Black }  
-      }                          
- }  
- 
-box { <-5, -4, 10>,                
-      <-4.9, -4.5, 9.5>               
-      texture {                  
-         pigment { color Black } 
-      }                          
- }  
- 
-box { <-5, -4, 5>,               
-      <-4.9, -4.5, 5.5>               
-      texture {                  
-         pigment { color Black } 
-      }                          
- } 
- 
-box { <-9, 1.4, 5>,               
-      < -8.5, 1.5, 5.5>               
-      texture {                  
-         pigment { color Black }  
-      }                          
- } 
- 
-box { <-9, 1.4, 10>,               
-      < -8.5, 1.5, 9.5>               
-      texture {                  
-         pigment { color Black }
-      }                          
- } 
+// Заклёпки на спинке (нижние)
+cylinder { <1.55, 0, 3.08>, <1.55, 0, 3.2>, 0.09 texture { pigment { color rgb <0.8, 0.6, 0.15> } finish { specular 0.6 roughness 0.02 } } } 
+cylinder { <1.55, 1.5, 3.08>, <1.55, 1.5, 3.2>, 0.09 texture { pigment { color rgb <0.8, 0.6, 0.15> } finish { specular 0.6 roughness 0.02 } } }
+
+// Передние заклёпки на сиденье
+cylinder { <2.5, -3.95, 3.2>, <2.5, -3.75, 3.2>, 0.09 texture { pigment { color rgb <0.8, 0.6, 0.15> } finish { specular 0.6 roughness 0.02 } } }
+cylinder { <4.5, -3.95, 3.2>, <4.5, -3.75, 3.2>, 0.09 texture { pigment { color rgb <0.8, 0.6, 0.15> } finish { specular 0.6 roughness 0.02 } } }
+
+// Задние заклёпки на сиденье
+cylinder { <2.5, -3.95, 7.7>, <2.5, -3.75, 7.7>, 0.09 texture { pigment { color rgb <0.8, 0.6, 0.15> } finish { specular 0.6 roughness 0.02 } } }
+cylinder { <4.5, -3.95, 7.7>, <4.5, -3.75, 7.7>, 0.09 texture { pigment { color rgb <0.8, 0.6, 0.15> } finish { specular 0.6 roughness 0.02 } } }
+
+// Дополнительные декоративные элементы стула
+box { <0.3, -10, 8>, <0.8, -9.5, 7.5> texture { pigment { color Black } } }  
+box { <0.3, -10, 3>, <0.8, -9.5, 3.5> texture { pigment { color Black } } } 
+box { <6.7, -10, 8>, <6.2, -9.5, 7.5> texture { pigment { color Black } } } 
+box { <6.7, -10, 3>, <6.2, -9.5, 3.5> texture { pigment { color Black } } }  
+box { <5, -4, 8>, <5.1, -4.5, 7.5> texture { pigment { color Black } } }  
+box { <5, -4, 3>, <5.1, -4.5, 3.5> texture { pigment { color Black } } } 
+box { <1, 1.4, 3>, <1.5, 1.5, 3.5> texture { pigment { color Black } } } 
+box { <1, 1.4, 8>, <1.5, 1.5, 7.5> texture { pigment { color Black } } } 
