@@ -1,47 +1,225 @@
 #include "colors.inc"
-#include "textures.inc"
+#include "textures.inc" 
 
-// Камера
-camera {
-    location <2, 1.5, -3>
-    look_at <0, 0.6, 0>
+camera { 
+   location <-15, 10, 25>  
+   look_at <-9, -8, 1>  
+ }
+      
+light_source { <-3, 10, -3> White shadowless }
+
+background { color rgb<0.2, 0.4, 0.8>  }
+  light_source { <100, 100, -100> color rgb 1 }
+
+
+
+box { <-8.5, -3.8, 5>,               
+      < -4, -4, 10>               
+      texture {                  
+         pigment { Brown }
+      }                          
+ }
+
+box { <-9, -10, 5>,                 
+      < -8.5, 1.4, 5.5>               
+      texture {                  
+         pigment { color Gray } 
+      }                          
+ }                                 
+   
+box { <-9, -10, 10>,                
+      < -8.5, 1.4, 9.5>            
+      texture {                  
+         pigment { color Gray }
+      }                          
+ }
+  
+   
+box { <-3.8, -10, 10>,                
+      < -10.7, -9.5, 9.5>               
+      texture {                  
+         pigment { color Gray }
+      }                          
+ }  
+ 
+box { <-3.8, -10, 5>,                
+      <-10.7, -9.5, 5.5>               
+      texture {                  
+         pigment { color Gray }
+      }                          
+ }
+ 
+  
+
+box { <-9, -10, 5>,                 
+      <-8.5, -9.5, 10>               
+      texture {                  
+         pigment { color Gray }  
+      }                          
+ } 
+
+// Iia neaaieai 
+box { <-8.5, -4, 10>,                
+      <-5, -4.5, 9.5>               
+      texture {                  
+         pigment { color Gray } 
+      }                          
+ }  
+ 
+box { <-8.5, -4, 5>,              
+      <-5, -4.5, 5.5>               
+      texture {                  
+         pigment { color Gray } 
+      }                          
+ }
+
+
+box { <-8.5, -1, 5>,            
+      < -8.3, 2, 10>            
+      texture {                  
+         pigment { wood }  
+      }                          
+ }   
+
+
+// Верхняя заклёпка
+cylinder { 
+   <-8.35, 0, 9.9>, 
+   <-8.35, 0, 9.80>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.7, 0.7, 0.75> } 
+      finish { specular 0.7 roughness 0.01 }
+   }
+} 
+
+cylinder { 
+   <-8.35, 1.5, 9.9>, 
+   <-8.35, 1.5, 9.80>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.7, 0.7, 0.75> } 
+      finish { specular 0.7 roughness 0.01 }
+   }
 }
 
-// Свет
-light_source {
-    <3, 5, -2>
-    color White
+// Нижняя заклёпка
+cylinder { 
+   <-8.35, 0, 5.08>, 
+   <-8.35, 0, 5.20>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.8, 0.6, 0.15> } 
+      finish { specular 0.6 roughness 0.02 }
+   }
+} 
+
+cylinder { 
+   <-8.35, 1.5, 5.08>, 
+   <-8.35, 1.5, 5.20>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.8, 0.6, 0.15> } 
+      finish { specular 0.6 roughness 0.02 }
+   }
 }
 
-// Пол
-plane {
-    y, 0
-    pigment { checker Gray20, White scale 0.5 }
+// Передние заклёпки 
+cylinder { 
+   <-7.5, -3.95, 5.2>, 
+   <-7.5, -3.75, 5.2>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.8, 0.6, 0.15> } 
+      finish { specular 0.6 roughness 0.02 }
+   }
 }
 
-// Стол
-union {
-    // Три плоскости-опоры
-    // Передняя левая
-    box {
-        <-0.6, 0, -0.35>, <-0.4, 0.7, -0.25>
-        pigment { Wood }
-    }
-    // Передняя правая
-    box {
-        <0.4, 0, -0.35>, <0.6, 0.7, -0.25>
-        pigment { Wood }
-    }
-    // Задняя центральная
-    box {
-        <-0.1, 0, 0.35>, <0.1, 0.7, 0.45>
-        pigment { Wood }
-    }
-
-    // Столешница
-    box {
-        <-0.9, 0.7, -0.6>, <0.9, 0.8, 0.6>
-        pigment { Wood }
-        finish { specular 0.3 }
-    }
+cylinder { 
+   <-5.5, -3.95, 5.2>, 
+   <-5.5, -3.75, 5.2>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.8, 0.6, 0.15> } 
+      finish { specular 0.6 roughness 0.02 }
+   }
 }
+
+// Задние заклёпки
+cylinder { 
+   <-7.5, -3.95, 9.7>, 
+   <-7.5, -3.75, 9.7>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.8, 0.6, 0.15> } 
+      finish { specular 0.6 roughness 0.02 }
+   }
+}
+
+cylinder { 
+   <-5.5, -3.95, 9.7>, 
+   <-5.5, -3.75, 9.7>, 
+   0.09
+   texture { 
+      pigment { color rgb <0.8, 0.6, 0.15> } 
+      finish { specular 0.6 roughness 0.02 }
+   }
+}
+
+// ========== ОСТАЛЬНЫЕ ДЕТАЛИ ==========
+ 
+box { <-10.7, -10, 10>,                
+      < -11.2, -9.5, 9.5>               
+      texture {                  
+         pigment { color Black }
+      }                          
+ }  
+ 
+box { <-10.7, -10, 5>,                
+      <-11.2, -9.5, 5.5>            
+      texture {                  
+         pigment { color Black }
+      }                          
+ } 
+ 
+box { <-3.3, -10, 10>,               
+      < -3.8, -9.5, 9.5>               
+      texture {                  
+         pigment { color Black } 
+      }                          
+ } 
+ 
+box { <-3.3, -10, 5>,              
+      <-3.8, -9.5, 5.5>               
+      texture {                  
+         pigment { color Black }  
+      }                          
+ }  
+ 
+box { <-5, -4, 10>,                
+      <-4.9, -4.5, 9.5>               
+      texture {                  
+         pigment { color Black } 
+      }                          
+ }  
+ 
+box { <-5, -4, 5>,               
+      <-4.9, -4.5, 5.5>               
+      texture {                  
+         pigment { color Black } 
+      }                          
+ } 
+ 
+box { <-9, 1.4, 5>,               
+      < -8.5, 1.5, 5.5>               
+      texture {                  
+         pigment { color Black }  
+      }                          
+ } 
+ 
+box { <-9, 1.4, 10>,               
+      < -8.5, 1.5, 9.5>               
+      texture {                  
+         pigment { color Black }
+      }                          
+ } 
