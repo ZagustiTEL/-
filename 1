@@ -1,45 +1,163 @@
 using System;
+using System.Data;
 using System.Data.SQLite;
 using System.Drawing;
 using System.Windows.Forms;
 
 namespace SupportDesk.forms
 {
-    public partial class KnowledgeBaseForm : Form
+    public partial class DormitoryForm : Form
     {
         private readonly string _connectionString;
-        private readonly bool _isAdmin;
-        private int? _currentArticleId = null;
+        private int? _selectedRoomId = null;
 
-        public KnowledgeBaseForm(string connectionString, bool isAdmin = false)
+        public DormitoryForm(string connectionString)
         {
             InitializeComponent();
-
             _connectionString = connectionString;
-            _isAdmin = isAdmin;
 
-            // Настройка видимости кнопок в зависимости от прав
-            btnAdd.Visible = _isAdmin;
-            btnSave.Visible = _isAdmin;
-            btnDelete.Visible = _isAdmin;
-            txtTitle.ReadOnly = !_isAdmin;
-            rtbContent.ReadOnly = !_isAdmin;
+            // Подписка на события
+            btnSearch.Click += (s, e) => LoadRooms();
+            btnRefresh.Click += (s, e) => { txtSearch.Clear(); cmbFloor.SelectedIndex = 0; cmbStatus.SelectedIndex = 0; LoadRooms(); };
+            btnAddRoom.Click += BtnAddRoom_Click;
+            btnEditRoom.Click += BtnEditRoom_Click;
+            btnDeleteRoom.Click += BtnDeleteRoom_Click;
+            btnAddResident.Click += BtnAddResident_Click;
+            btnEditResident.Click += BtnEditResident_Click;
+            btnEvict.Click += BtnEvict_Click;
+            dgvRooms.SelectionChanged += DgvRooms_SelectionChanged;
+            txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; LoadRooms(); } };
 
-            // Подписка на события (если не сделал через Designer)
-            btnSearch.Click += BtnSearch_Click;
-            lstArticles.SelectedIndexChanged += LstArticles_SelectedIndexChanged;
-            btnAdd.Click += BtnAdd_Click;
-            btnSave.Click += BtnSave_Click;
-            btnDelete.Click += BtnDelete_Click;
-            txtSearch.KeyDown += TxtSearch_KeyDown;
-
-            EnsureTableExists();
-            LoadCategories();
-            LoadArticles();
+            EnsureTablesExist();
+            LoadFilters();
+            LoadRooms();
         }
 
-        // ==================== Создание таблицы ====================
-        private void EnsureTableExists()
+        // ==================== Создание таблиц ====================
+        private void EnsureTablesExist()
+        {
+            using (var conn = new SQLiteConnection(_connectionString))
+            {
+                conn.Open();
+
+                string sqlRooms = @"
+                    CREATE TABLE IF NOT EXISTS DormRooms (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        RoomNumber TEXT NOT NULL UNIQUE,
+                        Floor INTEGER NOT NULL,
+                        Capacity INTEGER NOT NULL DEFAULT 2,
+                        Status TEXT NOT NULL DEFAULT 'Свободна',
+                        Notes TEXT
+                    );";
+
+                string sqlResidents = @"
+                    CREATE TABLE IF NOT EXISTS DormResidents (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        RoomId INTEGER NOT NULL,
+                        FullName TEXT NOT NULL,
+                        Phone TEXT,
+                        Faculty TEXT,
+                        Course INTEGER,
+                        CheckInDate TEXT DEFAULT CURRENT_TIMESTAMP,
+                        Notes TEXT,
+                        FOREIGN KEY (RoomId) REFERENCES DormRooms(Id) ON DELETE CASCADE
+                    );";
+
+                using (var cmd = new SQLiteCommand(sqlRooms, conn)) cmd.ExecuteNonQuery();
+                using (var cmd = new SQLiteCommand(sqlResidents, conn)) cmd.ExecuteNonQuery();
+            }
+        }
+
+        // ==================== Фильтры ====================
+        private void LoadFilters()
+        {
+            cmbFloor.Items.Clear();
+            cmbFloor.Items.Add("Все этажи");
+            for (int i = 1; i <= 10; i++)
+                cmbFloor.Items.Add(i.ToString());
+            cmbFloor.SelectedIndex = 0;
+
+            cmbStatus.Items.Clear();
+            cmbStatus.Items.AddRange(new object[] { "Все статусы", "Свободна", "Занята", "На ремонте" });
+            cmbStatus.SelectedIndex = 0;
+        }
+
+        // ==================== Загрузка комнат ====================
+        private void LoadRooms()
+        {
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    string sql = @"
+                        SELECT 
+                            r.Id,
+                            r.RoomNumber AS [№ комнаты],
+                            r.Floor AS [Этаж],
+                            r.Capacity AS [Мест],
+                            COUNT(res.Id) AS [Жильцов],
+                            r.Status AS [Статус],
+                            r.Notes AS [Примечание]
+                        FROM DormRooms r
+                        LEFT JOIN DormResidents res ON res.RoomId = r.Id
+                        WHERE 1=1";
+
+                    if (!string.IsNullOrWhiteSpace(txtSearch.Text))
+                        sql += " AND (r.RoomNumber LIKE @search OR res.FullName LIKE @search)";
+
+                    if (cmbFloor.SelectedIndex > 0)
+                        sql += " AND r.Floor = @floor";
+
+                    if (cmbStatus.SelectedIndex > 0)
+                        sql += " AND r.Status = @status";
+
+                    sql += " GROUP BY r.Id ORDER BY r.Floor, r.RoomNumber";
+
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        if (!string.IsNullOrWhiteSpace(txtSearch.Text))
+                            cmd.Parameters.AddWithValue("@search", "%" + txtSearch.Text.Trim() + "%");
+                        if (cmbFloor.SelectedIndex > 0)
+                            cmd.Parameters.AddWithValue("@floor", int.Parse(cmbFloor.SelectedItem.ToString()));
+                        if (cmbStatus.SelectedIndex > 0)
+                            cmd.Parameters.AddWithValue("@status", cmbStatus.SelectedItem.ToString());
+
+                        DataTable dt = new DataTable();
+                        using (var adapter = new SQLiteDataAdapter(cmd))
+                            adapter.Fill(dt);
+
+                        dgvRooms.DataSource = dt;
+                        if (dgvRooms.Columns.Contains("Id"))
+                            dgvRooms.Columns["Id"].Visible = false;
+
+                        lblStatus.Text = $"Комнат: {dt.Rows.Count}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка загрузки комнат:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ==================== Выбор комнаты ====================
+        private void DgvRooms_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dgvRooms.CurrentRow == null || dgvRooms.CurrentRow.Cells["Id"].Value == null)
+            {
+                _selectedRoomId = null;
+                dgvResidents.DataSource = null;
+                return;
+            }
+
+            _selectedRoomId = Convert.ToInt32(dgvRooms.CurrentRow.Cells["Id"].Value);
+            LoadResidents(_selectedRoomId.Value);
+        }
+
+        private void LoadResidents(int roomId)
         {
             try
             {
@@ -47,262 +165,84 @@ namespace SupportDesk.forms
                 {
                     conn.Open();
                     string sql = @"
-                        CREATE TABLE IF NOT EXISTS KnowledgeBase (
-                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            Title TEXT NOT NULL,
-                            Category TEXT,
-                            Content TEXT,
-                            CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                            UpdatedAt TEXT
-                        );";
-                    using (var cmd = new SQLiteCommand(sql, conn))
-                        cmd.ExecuteNonQuery();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Ошибка создания таблицы:\n" + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ==================== Загрузка категорий ====================
-        private void LoadCategories()
-        {
-            cmbCategory.Items.Clear();
-            cmbCategory.Items.Add("Все категории");
-
-            try
-            {
-                using (var conn = new SQLiteConnection(_connectionString))
-                {
-                    conn.Open();
-                    string sql = "SELECT DISTINCT Category FROM KnowledgeBase WHERE Category IS NOT NULL AND Category != '' ORDER BY Category";
-                    using (var cmd = new SQLiteCommand(sql, conn))
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                            cmbCategory.Items.Add(reader.GetString(0));
-                    }
-                }
-            }
-            catch { }
-
-            cmbCategory.SelectedIndex = 0;
-        }
-
-        // ==================== Загрузка списка статей ====================
-        private void LoadArticles()
-        {
-            lstArticles.Items.Clear();
-            _currentArticleId = null;
-            txtTitle.Clear();
-            rtbContent.Clear();
-
-            string search = txtSearch.Text.Trim();
-            string category = cmbCategory.SelectedItem?.ToString() ?? "Все категории";
-
-            try
-            {
-                using (var conn = new SQLiteConnection(_connectionString))
-                {
-                    conn.Open();
-                    string sql = "SELECT Id, Title, Category FROM KnowledgeBase WHERE 1=1";
-
-                    if (!string.IsNullOrEmpty(search))
-                        sql += " AND (Title LIKE @search OR Content LIKE @search)";
-                    if (category != "Все категории")
-                        sql += " AND Category = @category";
-
-                    sql += " ORDER BY Title";
+                        SELECT 
+                            Id,
+                            FullName AS [ФИО],
+                            Phone AS [Телефон],
+                            Faculty AS [Факультет],
+                            Course AS [Курс],
+                            CheckInDate AS [Дата заезда],
+                            Notes AS [Примечание]
+                        FROM DormResidents 
+                        WHERE RoomId = @roomId
+                        ORDER BY FullName";
 
                     using (var cmd = new SQLiteCommand(sql, conn))
                     {
-                        if (!string.IsNullOrEmpty(search))
-                            cmd.Parameters.AddWithValue("@search", "%" + search + "%");
-                        if (category != "Все категории")
-                            cmd.Parameters.AddWithValue("@category", category);
+                        cmd.Parameters.AddWithValue("@roomId", roomId);
+                        DataTable dt = new DataTable();
+                        using (var adapter = new SQLiteDataAdapter(cmd))
+                            adapter.Fill(dt);
 
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                int id = reader.GetInt32(0);
-                                string title = reader.GetString(1);
-                                string cat = reader.IsDBNull(2) ? "" : reader.GetString(2);
-
-                                string display = string.IsNullOrEmpty(cat) ? title : $"[{cat}] {title}";
-                                lstArticles.Items.Add(new ArticleItem { Id = id, Title = display });
-                            }
-                        }
-                    }
-                }
-
-                lblStatus.Text = $"Найдено статей: {lstArticles.Items.Count}";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Ошибка загрузки статей:\n" + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        // ==================== Выбор статьи ====================
-        private void LstArticles_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (lstArticles.SelectedItem is ArticleItem item)
-            {
-                LoadArticle(item.Id);
-            }
-        }
-
-        private void LoadArticle(int id)
-        {
-            try
-            {
-                using (var conn = new SQLiteConnection(_connectionString))
-                {
-                    conn.Open();
-                    string sql = "SELECT Title, Content FROM KnowledgeBase WHERE Id = @id";
-                    using (var cmd = new SQLiteCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@id", id);
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            if (reader.Read())
-                            {
-                                _currentArticleId = id;
-                                txtTitle.Text = reader.GetString(0);
-                                rtbContent.Text = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                                lblStatus.Text = $"Открыта статья ID: {id}";
-                            }
-                        }
+                        dgvResidents.DataSource = dt;
+                        if (dgvResidents.Columns.Contains("Id"))
+                            dgvResidents.Columns["Id"].Visible = false;
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Ошибка загрузки статьи:\n" + ex.Message, "Ошибка",
+                MessageBox.Show("Ошибка загрузки жильцов:\n" + ex.Message, "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        // ==================== Кнопки ====================
-        private void BtnSearch_Click(object sender, EventArgs e)
+        // ==================== Работа с комнатами ====================
+        private void BtnAddRoom_Click(object sender, EventArgs e)
         {
-            LoadArticles();
-        }
-
-        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter)
+            using (var form = new RoomEditForm(_connectionString, null))
             {
-                e.SuppressKeyPress = true;
-                LoadArticles();
+                if (form.ShowDialog() == DialogResult.OK)
+                    LoadRooms();
             }
         }
 
-        private void BtnAdd_Click(object sender, EventArgs e)
+        private void BtnEditRoom_Click(object sender, EventArgs e)
         {
-            _currentArticleId = null;
-            txtTitle.Clear();
-            rtbContent.Clear();
-            txtTitle.Focus();
-            lblStatus.Text = "Режим создания новой статьи";
-        }
-
-        private void BtnSave_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrWhiteSpace(txtTitle.Text))
+            if (_selectedRoomId == null)
             {
-                MessageBox.Show("Введите заголовок статьи.", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtTitle.Focus();
+                MessageBox.Show("Выберите комнату.", "Внимание", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            string category = cmbCategory.SelectedItem?.ToString();
-            if (string.IsNullOrEmpty(category) || category == "Все категории")
-                category = "Общее";
-
-            try
+            using (var form = new RoomEditForm(_connectionString, _selectedRoomId))
             {
-                using (var conn = new SQLiteConnection(_connectionString))
-                {
-                    conn.Open();
-
-                    if (_currentArticleId == null)
-                    {
-                        // Добавление новой статьи
-                        string sql = @"INSERT INTO KnowledgeBase (Title, Category, Content, UpdatedAt) 
-                                       VALUES (@title, @cat, @content, datetime('now'))";
-                        using (var cmd = new SQLiteCommand(sql, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@title", txtTitle.Text.Trim());
-                            cmd.Parameters.AddWithValue("@cat", category);
-                            cmd.Parameters.AddWithValue("@content", rtbContent.Text);
-                            cmd.ExecuteNonQuery();
-                        }
-                        lblStatus.Text = "Статья успешно добавлена";
-                    }
-                    else
-                    {
-                        // Обновление существующей
-                        string sql = @"UPDATE KnowledgeBase 
-                                       SET Title = @title, Content = @content, UpdatedAt = datetime('now') 
-                                       WHERE Id = @id";
-                        using (var cmd = new SQLiteCommand(sql, conn))
-                        {
-                            cmd.Parameters.AddWithValue("@title", txtTitle.Text.Trim());
-                            cmd.Parameters.AddWithValue("@content", rtbContent.Text);
-                            cmd.Parameters.AddWithValue("@id", _currentArticleId.Value);
-                            cmd.ExecuteNonQuery();
-                        }
-                        lblStatus.Text = "Статья успешно обновлена";
-                    }
-                }
-
-                LoadCategories();
-                LoadArticles();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Ошибка сохранения:\n" + ex.Message, "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (form.ShowDialog() == DialogResult.OK)
+                    LoadRooms();
             }
         }
 
-        private void BtnDelete_Click(object sender, EventArgs e)
+        private void BtnDeleteRoom_Click(object sender, EventArgs e)
         {
-            if (_currentArticleId == null)
-            {
-                MessageBox.Show("Сначала выберите статью для удаления.", "Внимание",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            if (_selectedRoomId == null) return;
 
-            var result = MessageBox.Show("Вы действительно хотите удалить эту статью?",
-                "Подтверждение удаления", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (result != DialogResult.Yes) return;
+            if (MessageBox.Show("Удалить комнату и всех её жильцов?", "Подтверждение",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
             try
             {
                 using (var conn = new SQLiteConnection(_connectionString))
                 {
                     conn.Open();
-                    using (var cmd = new SQLiteCommand("DELETE FROM KnowledgeBase WHERE Id = @id", conn))
+                    using (var cmd = new SQLiteCommand("DELETE FROM DormRooms WHERE Id = @id", conn))
                     {
-                        cmd.Parameters.AddWithValue("@id", _currentArticleId.Value);
+                        cmd.Parameters.AddWithValue("@id", _selectedRoomId.Value);
                         cmd.ExecuteNonQuery();
                     }
                 }
-
-                _currentArticleId = null;
-                txtTitle.Clear();
-                rtbContent.Clear();
-                LoadArticles();
-                lblStatus.Text = "Статья удалена";
+                _selectedRoomId = null;
+                LoadRooms();
+                dgvResidents.DataSource = null;
             }
             catch (Exception ex)
             {
@@ -311,12 +251,67 @@ namespace SupportDesk.forms
             }
         }
 
-        // ==================== Вспомогательный класс ====================
-        private class ArticleItem
+        // ==================== Работа с жильцами ====================
+        private void BtnAddResident_Click(object sender, EventArgs e)
         {
-            public int Id { get; set; }
-            public string Title { get; set; }
-            public override string ToString() => Title;
+            if (_selectedRoomId == null)
+            {
+                MessageBox.Show("Сначала выберите комнату.", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var form = new ResidentEditForm(_connectionString, _selectedRoomId.Value, null))
+            {
+                if (form.ShowDialog() == DialogResult.OK)
+                {
+                    LoadResidents(_selectedRoomId.Value);
+                    LoadRooms(); // обновить количество жильцов
+                }
+            }
+        }
+
+        private void BtnEditResident_Click(object sender, EventArgs e)
+        {
+            if (dgvResidents.CurrentRow == null) return;
+
+            int residentId = Convert.ToInt32(dgvResidents.CurrentRow.Cells["Id"].Value);
+
+            using (var form = new ResidentEditForm(_connectionString, _selectedRoomId.Value, residentId))
+            {
+                if (form.ShowDialog() == DialogResult.OK)
+                    LoadResidents(_selectedRoomId.Value);
+            }
+        }
+
+        private void BtnEvict_Click(object sender, EventArgs e)
+        {
+            if (dgvResidents.CurrentRow == null) return;
+
+            if (MessageBox.Show("Выселить выбранного жильца?", "Подтверждение",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            int residentId = Convert.ToInt32(dgvResidents.CurrentRow.Cells["Id"].Value);
+
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SQLiteCommand("DELETE FROM DormResidents WHERE Id = @id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", residentId);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                LoadResidents(_selectedRoomId.Value);
+                LoadRooms();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка выселения:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
