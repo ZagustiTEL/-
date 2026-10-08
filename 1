@@ -1,1 +1,323 @@
 
+using System;
+using System.Data.SQLite;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace SupportDesk.forms
+{
+    public partial class KnowledgeBaseForm : Form
+    {
+        private readonly string _connectionString;
+        private readonly bool _isAdmin;
+        private int? _currentArticleId = null;
+
+        public KnowledgeBaseForm(string connectionString, bool isAdmin = false)
+        {
+            InitializeComponent();
+
+            _connectionString = connectionString;
+            _isAdmin = isAdmin;
+
+            // Настройка видимости кнопок в зависимости от прав
+            btnAdd.Visible = _isAdmin;
+            btnSave.Visible = _isAdmin;
+            btnDelete.Visible = _isAdmin;
+            txtTitle.ReadOnly = !_isAdmin;
+            rtbContent.ReadOnly = !_isAdmin;
+
+            // Подписка на события (если не сделал через Designer)
+            btnSearch.Click += BtnSearch_Click;
+            lstArticles.SelectedIndexChanged += LstArticles_SelectedIndexChanged;
+            btnAdd.Click += BtnAdd_Click;
+            btnSave.Click += BtnSave_Click;
+            btnDelete.Click += BtnDelete_Click;
+            txtSearch.KeyDown += TxtSearch_KeyDown;
+
+            EnsureTableExists();
+            LoadCategories();
+            LoadArticles();
+        }
+
+        // ==================== Создание таблицы ====================
+        private void EnsureTableExists()
+        {
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+                    string sql = @"
+                        CREATE TABLE IF NOT EXISTS KnowledgeBase (
+                            Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            Title TEXT NOT NULL,
+                            Category TEXT,
+                            Content TEXT,
+                            CreatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                            UpdatedAt TEXT
+                        );";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                        cmd.ExecuteNonQuery();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка создания таблицы:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ==================== Загрузка категорий ====================
+        private void LoadCategories()
+        {
+            cmbCategory.Items.Clear();
+            cmbCategory.Items.Add("Все категории");
+
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+                    string sql = "SELECT DISTINCT Category FROM KnowledgeBase WHERE Category IS NOT NULL AND Category != '' ORDER BY Category";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                            cmbCategory.Items.Add(reader.GetString(0));
+                    }
+                }
+            }
+            catch { }
+
+            cmbCategory.SelectedIndex = 0;
+        }
+
+        // ==================== Загрузка списка статей ====================
+        private void LoadArticles()
+        {
+            lstArticles.Items.Clear();
+            _currentArticleId = null;
+            txtTitle.Clear();
+            rtbContent.Clear();
+
+            string search = txtSearch.Text.Trim();
+            string category = cmbCategory.SelectedItem?.ToString() ?? "Все категории";
+
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+                    string sql = "SELECT Id, Title, Category FROM KnowledgeBase WHERE 1=1";
+
+                    if (!string.IsNullOrEmpty(search))
+                        sql += " AND (Title LIKE @search OR Content LIKE @search)";
+                    if (category != "Все категории")
+                        sql += " AND Category = @category";
+
+                    sql += " ORDER BY Title";
+
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        if (!string.IsNullOrEmpty(search))
+                            cmd.Parameters.AddWithValue("@search", "%" + search + "%");
+                        if (category != "Все категории")
+                            cmd.Parameters.AddWithValue("@category", category);
+
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int id = reader.GetInt32(0);
+                                string title = reader.GetString(1);
+                                string cat = reader.IsDBNull(2) ? "" : reader.GetString(2);
+
+                                string display = string.IsNullOrEmpty(cat) ? title : $"[{cat}] {title}";
+                                lstArticles.Items.Add(new ArticleItem { Id = id, Title = display });
+                            }
+                        }
+                    }
+                }
+
+                lblStatus.Text = $"Найдено статей: {lstArticles.Items.Count}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка загрузки статей:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ==================== Выбор статьи ====================
+        private void LstArticles_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (lstArticles.SelectedItem is ArticleItem item)
+            {
+                LoadArticle(item.Id);
+            }
+        }
+
+        private void LoadArticle(int id)
+        {
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+                    string sql = "SELECT Title, Content FROM KnowledgeBase WHERE Id = @id";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", id);
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                _currentArticleId = id;
+                                txtTitle.Text = reader.GetString(0);
+                                rtbContent.Text = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                                lblStatus.Text = $"Открыта статья ID: {id}";
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка загрузки статьи:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ==================== Кнопки ====================
+        private void BtnSearch_Click(object sender, EventArgs e)
+        {
+            LoadArticles();
+        }
+
+        private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                LoadArticles();
+            }
+        }
+
+        private void BtnAdd_Click(object sender, EventArgs e)
+        {
+            _currentArticleId = null;
+            txtTitle.Clear();
+            rtbContent.Clear();
+            txtTitle.Focus();
+            lblStatus.Text = "Режим создания новой статьи";
+        }
+
+        private void BtnSave_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtTitle.Text))
+            {
+                MessageBox.Show("Введите заголовок статьи.", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtTitle.Focus();
+                return;
+            }
+
+            string category = cmbCategory.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(category) || category == "Все категории")
+                category = "Общее";
+
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+
+                    if (_currentArticleId == null)
+                    {
+                        // Добавление новой статьи
+                        string sql = @"INSERT INTO KnowledgeBase (Title, Category, Content, UpdatedAt) 
+                                       VALUES (@title, @cat, @content, datetime('now'))";
+                        using (var cmd = new SQLiteCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@title", txtTitle.Text.Trim());
+                            cmd.Parameters.AddWithValue("@cat", category);
+                            cmd.Parameters.AddWithValue("@content", rtbContent.Text);
+                            cmd.ExecuteNonQuery();
+                        }
+                        lblStatus.Text = "Статья успешно добавлена";
+                    }
+                    else
+                    {
+                        // Обновление существующей
+                        string sql = @"UPDATE KnowledgeBase 
+                                       SET Title = @title, Content = @content, UpdatedAt = datetime('now') 
+                                       WHERE Id = @id";
+                        using (var cmd = new SQLiteCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@title", txtTitle.Text.Trim());
+                            cmd.Parameters.AddWithValue("@content", rtbContent.Text);
+                            cmd.Parameters.AddWithValue("@id", _currentArticleId.Value);
+                            cmd.ExecuteNonQuery();
+                        }
+                        lblStatus.Text = "Статья успешно обновлена";
+                    }
+                }
+
+                LoadCategories();
+                LoadArticles();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка сохранения:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void BtnDelete_Click(object sender, EventArgs e)
+        {
+            if (_currentArticleId == null)
+            {
+                MessageBox.Show("Сначала выберите статью для удаления.", "Внимание",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show("Вы действительно хотите удалить эту статью?",
+                "Подтверждение удаления", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (result != DialogResult.Yes) return;
+
+            try
+            {
+                using (var conn = new SQLiteConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new SQLiteCommand("DELETE FROM KnowledgeBase WHERE Id = @id", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", _currentArticleId.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                _currentArticleId = null;
+                txtTitle.Clear();
+                rtbContent.Clear();
+                LoadArticles();
+                lblStatus.Text = "Статья удалена";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Ошибка удаления:\n" + ex.Message, "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ==================== Вспомогательный класс ====================
+        private class ArticleItem
+        {
+            public int Id { get; set; }
+            public string Title { get; set; }
+            public override string ToString() => Title;
+        }
+    }
+}
